@@ -1,0 +1,35 @@
+services:
+  influxdb2:
+    image: influxdb:2
+    ports:
+      - 8086:8086
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: "setup"
+      DOCKER_INFLUXDB_INIT_USERNAME: "admin"
+      DOCKER_INFLUXDB_INIT_PASSWORD: "mG63mN56jW93psfB"
+      DOCKER_INFLUXDB_INIT_ORG: "fast-api"
+      DOCKER_INFLUXDB_INIT_BUCKET: "stats"
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: "bJeBB6tuOZNYfPRPjUbK4E0MCORpE2Fcm1kqe21GcQdkA0BdeoAd5jy-JjWpKuC11l0syXs5x9Gf5GlzO2DPIg=="
+    volumes:
+      - type: volume
+        source: influxdb2-data
+        target: /var/lib/influxdb2
+      - type: volume
+        source: influxdb2-config
+        target: /etc/influxdb2
+  fastapi-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      INFLUX_TOKEN: "bJeBB6tuOZNYfPRPjUbK4E0MCORpE2Fcm1kqe21GcQdkA0BdeoAd5jy-JjWpKuC11l0syXs5x9Gf5GlzO2DPIg=="
+      INFLUX_ORG: "fast-api"
+      INFLUX_URL: "http://influxdb2:8086"
+      INFLUX_BUCKET: "stats"
+    depends_on:
+      - influxdb2
+volumes:
+  influxdb2-data:
+  influxdb2-config:

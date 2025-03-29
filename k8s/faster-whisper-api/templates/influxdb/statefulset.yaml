@@ -1,0 +1,63 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: fw-api-stats-db
+  labels:
+    name: fw-api-stats-db
+spec:
+  serviceName: "fw-api-stats-db"
+  selector:
+    matchLabels:
+      app: fw-api-stats-db
+  template:
+    metadata:
+      labels:
+        app: fw-api-stats-db
+      # annotations:
+      #   prometheus.io/scrape: "true"
+      #   prometheus.io/path: "/metrics"
+      #   prometheus.io/port: "1010"
+    spec:
+      containers:
+        - name: fw-api-stats-db
+          image: influxdb:2
+          ports:
+            - containerPort: 8086
+            # - containerPort: 1010
+            #   name: metrics
+          env:
+            - name: DOCKER_INFLUXDB_INIT_MODE
+              value: "setup"
+            - name: DOCKER_INFLUXDB_INIT_USERNAME
+              value: "admin"
+            - name: DOCKER_INFLUXDB_INIT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: influxdb-secret
+                  key: DOCKER_INFLUXDB_INIT_PASSWORD
+            - name: DOCKER_INFLUXDB_INIT_ORG
+              value: "fast-api"
+            - name: DOCKER_INFLUXDB_INIT_BUCKET
+              value: "stats"
+            - name: DOCKER_INFLUXDB_INIT_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: influxdb-secret
+                  key: INFLUX_TOKEN
+          resources:
+            requests:
+              memory: "500Mi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: influxdb2-data
+              mountPath: "/var/lib/influxdb2"
+            - name: influxdb2-config
+              mountPath: "/etc/influxdb2"
+      volumes:
+        - name: influxdb2-data
+          persistentVolumeClaim:
+            claimName: influxdb-data-pvc
+        - name: influxdb2-config
+          persistentVolumeClaim:
+            claimName: influxdb-config-pvc

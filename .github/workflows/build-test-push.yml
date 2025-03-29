@@ -1,0 +1,60 @@
+name: Build, test and push to DockerHub
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "Dockerfile.api"
+  workflow_dispatch:
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: "read"
+      id-token: "write"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Build test Docker image
+        run: docker build -t fast-api-test:v0 -f ./Dockerfile.api .
+
+      - name: Run influxdb test
+        run: |
+          docker run -d -p 8086:8086 \
+          -e DOCKER_INFLUXDB_INIT_MODE=setup \
+          -e DOCKER_INFLUXDB_INIT_USERNAME=test \
+          -e DOCKER_INFLUXDB_INIT_PASSWORD=passtest \
+          -e DOCKER_INFLUXDB_INIT_ORG=fast-api \
+          -e DOCKER_INFLUXDB_INIT_BUCKET=stats \
+          -e DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=tokentest \
+          influxdb:2
+      
+      - name: Run tests
+        run: |
+          docker run --rm --network=host \
+          -v "$(pwd)/test:/test" \
+          -e INFLUX_TOKEN="tokentest" \
+          -e INFLUX_ORG="fast-api" \
+          -e INFLUX_URL="http://localhost:8086" \
+          -e INFLUX_BUCKET="stats" \
+          --entrypoint pytest \
+          fast-api-test:v0 \
+          test_unit.py
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.api
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/fasterwhisperapi:latest

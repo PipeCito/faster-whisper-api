@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    app: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: engineeringenube/fasterwhisperapi:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: INFLUX_URL
+              value: "http://service-fw-api-stats-db.default.svc.cluster.local:8086"
+            - name: INFLUX_ORG
+              value: "fast-api"
+            - name: INFLUX_BUCKET
+              value: "stats"
+            - name: INFLUX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: influxdb-secret
+                  key: INFLUX_TOKEN
+          resources:
+            limits:
+              cpu: "800m"
+              memory: "4Gi"
+            requests:
+              cpu: "500m"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10       
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
